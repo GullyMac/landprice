@@ -13,7 +13,7 @@ output:
 --------------------------------------------------------------------------
 
 ```{r setting, echo=FALSE}
-setwd("C:/Users/지현/Desktop/jinri")
+setwd("C:/Users/jhj73_000/Desktop/고대/진리장학금/모델")
 ```
 
  1. 분석 목표
@@ -141,9 +141,18 @@ dat <- newDat
   - 동별 평균 지가
   
 ```{r eda_dong_landvalue, echo=FALSE}
-dong <- read.csv("finaldataset_dong.csv", header=T)
-hist(dong$landvalue, main = "동별 평균 지가 분포", xlab = "동별 지가")
+dat <- read.csv("finaldataset_dong.csv", header=T)
+hist(dat$landvalue, main = "동별 평균 지가 분포", xlab = "동별 지가")
 ```
+
+
+데이터의 분포가 한 쪽으로 쏠려 있기 때문에 자연로그를 취하여 정규분포에 가깝게 변환하였다. 
+  
+```{r eda_log_landvalue}
+hist(log(dat$landvalue), main="log(동별 평균 지가) 분포", xlab = "log(동별 지가)")
+dat$landvalue <- log(dat$landvalue)
+```
+
 
  2) 설명변수 분포
 
@@ -151,33 +160,197 @@ hist(dong$landvalue, main = "동별 평균 지가 분포", xlab = "동별 지가
 
  1) Train & Test data 나누기
 
-```{r train_test_division, echo=FALSE}
-set.seed(123)
-randomindex <- sample(1:nrow(dong), size=nrow(dong)*0.8, replace=F)
-train_x<- dong[randomindex, -c(1,2)]
-test_x<-dong[-randomindex, -c(1,2)]
+```{r train_test_division}
+dat <- dat[, -c(1, 9, 10)]
+set.seed(1234)
+randomindex <- sample(1:nrow(dat), size=round(nrow(dat)*0.8), replace=F)
+train_x <- dat[randomindex, -1]
+test_x <- dat[-randomindex, -1]
 
-train_y<-dong[randomindex, 2]
-test_y<-dong[-randomindex,2]
+train_y <- dat[randomindex, 1]
+test_y <- dat[-randomindex, 1]
 
-traindong <- donga.frame(train_x, train_y)
-testdong <- donga.frame(test_x, test_y)
+traindat <- data.frame(train_x, train_y)
+testdat <- data.frame(test_x, test_y)
 ```
 
- 2) KNN
+
+ 2) 선형회귀분석
  
-  - 5-fold Cross Validation으로 가장 적합한 K 찾기
+ - 모델 적합
+```{r lmfit}
+lmFit <- lm(train_y ~ ., data = traindat)
+summary(lmFit)
+lmFit_null <- lm(train_y ~ 1, data = traindat)
+```
+
+ 적합한 모델을 이용하여 변수선택 단계를 진행하였다.
+ 
+```{r lmfit_step, include=FALSE}
+forward <- step(lmFit_null, direction = "forward", scope = formula(lmFit))
+backward <- step(lmFit, direction = "backward", scope = formula(lmFit_null))
+stepwise <- step(lmFit, direction = "both")
+```
+
+ - 변수선택 결과
+```{r lmfit_step_summary}
+summary(forward)
+summary(backward)
+summary(stepwise)
+
+# 세 방법 모두 숙박업소와 특수학교를 유의한 변수로 분류하였다.
+
+par(mfrow=c(2, 2))
+plot(forward)
+```
+
+ - 예측
+```{r lmfit_predict}
+pred_lm <- predict(forward, testdat)
+mean((pred_lm - testdat$test_y)^2)
+
+par(mfrow=c(1, 1))
+plot(pred_lm ~ testdat$test_y)
+abline(a=0, b=1, col="red", lwd=2)
+
+cor(pred_lm, testdat$test_y)
+```
+
+ - 결과 해석: 숙박업소와 특수학교가 유의한 변수로 분류되었다. 
+ 
+ 숙박업소가 많이 분포한 지역은 업무지구보다는 유동인구가 적지만 주거지구보다는 유동인구가 많은 터미널 주변이나 각 행정구의 중심지에 해당한다. 따라서 숙박업소가 많은 곳이라면 그렇지 않은 곳보다 지가가 조금 더 높을 것이라고 예상할 수 있다.
+ 
+ 특수학교의 경우 특수학교가 위치한 동은 그렇지 않은 동보다 지가가 상당히 낮다는 결과가 도출되었다. 하지만 이는 상관관계일 뿐 인과관계가 아니므로 선후관계를 함부로 단정지을 수 없다. 장애인은 비장애인보다 저소득층 비율이 높은 집단이기 때문에, 소득 및 생활 수준이 상대적으로 낮은 구 및 동에 장애인 거주 비율이 높을 수밖에 없다. 특수학교가 장애인 거주 비율이 높은 지역에 설립된 것이지, 특수학교 설립에 영향을 받아 지가가 하락했다는 추론에는 타당성이 부족하다. 
+ 
+ 3) 회귀나무 (Regression Tree)
+ 
+  - tree library를 이용한 회귀나무 모델
+```{r tree}
+library(tree)
+
+tree.fit <- tree(train_y ~ ., data=traindat)    
+tree.fit
+summary(tree.fit)
+```
+
+```{r tree_plot, echo=FALSE}
+par(mfrow=c(1, 1))
+plot(tree.fit)
+text(tree.fit, cex=.75)  # cex = 글씨 크기 배율
+```
+
+```{r tree_pred}
+tree.pred <- predict(tree.fit, testdat)
+mean((tree.pred - testdat$test_y)^2)
+
+plot(tree.pred ~ testdat$test_y)
+abline(a=0, b=1, col="red", lwd=2)
+cor(tree.pred, testdat$test_y)
+```
+
+```{r tree_cv}
+tree.CV <- cv.tree(tree.fit, K=10, FUN=prune.tree)
+
+# Deviance에 대한 plot
+plot(tree.CV)
+tree.CV$size[tree.CV$dev==min(tree.CV$dev)] # deviance를 최소화하는 가지의 개수
+
+tree.prune <- prune.tree(tree.fit, best=3)
+plot(tree.prune)
+text(tree.prune, cex=.75)
+```
+
+```{r tree_pred2}
+tree.pred2 <- predict(tree.prune, testdat)
+mean((tree.pred2 - testdat$test_y)^2)
+
+plot(tree.pred2 ~ testdat$test_y)
+abline(a=0, b=1, col="red", lwd=2)
+
+cor(tree.pred2, testdat$test_y)
+```
+ 
+  - rpart library를 이용한 회귀나무 모델
   
-```{r 5-fold_Cross_Validation}
+```{r rpart}
+library(rpart)
+rpart.fit <- rpart(train_y~., data=traindat, control = rpart.control(cp=0.001))
+```
+
+```{r rpart_plot}
+plot(rpart.fit)
+text(rpart.fit, cex=.75, pretty=0)
+```
+
+```{r rpart_pred}
+pred.rp <- predict(rpart.fit, testdat)
+mean((pred.rp - testdat$test_y)^2)
+
+plot(pred.rp ~ testdat$test_y)
+abline(a=0, b=1, col="red", lwd=2)
+
+cor(pred.rp, testdat$test_y)
+```
+
+```{r rart_cp}
+printcp(rpart.fit)
+plotcp(rpart.fit)
+```
+
+```{r rpart_prune}
+prune.rpart <- prune(rpart.fit, cp=rpart.fit$cptable[which.min(rpart.fit$cptable[,"xerror"]), "CP"])
+plot(prune.rpart)
+text(prune.rpart, cex=.75, pretty=0)
+```
+
+```{r rpart_prune_pred}
+pred.rpart <- predict(prune.rpart, testdat)
+mean((pred.rpart - testdat$test_y)^2)
+
+plot(pred.rpart ~ testdat$test_y)
+abline(a=0, b=1, col="red", lwd=2)
+
+cor(pred.rpart, testdat$test_y)
+```
+
+  - party library를 이용한 회귀나무 모델
+  
+```{r party_load, include=F}
+library(party)
+```
+
+```{r party}
+party.fit <- ctree(train_y~., data=traindat)
+plot(party.fit)
+```
+
+```{r party_pred}
+pred.party <- predict(party.fit, testdat)
+mean((pred.party-testdat$test_y)^2)
+
+plot(pred.party ~ testdat$test_y)
+abline(a=0, b=1, col="red", lwd=2)
+
+cor(pred.party, testdat$test_y)
+```
+  
+  
+ 4) KNN (unweighted)
+ 
+  - class library를 이용한 KNN 모델
+ 
+  - 10-fold Cross Validation으로 가장 적합한 K 찾기
+  
+```{r 10fold_Cross_Validation}
 library(class)
 library(gmodels)
-set.seed(123)
+set.seed(1234)
 Candidate_k <- seq(from=1, to=29, by=2)
-ErrorMat <- matrix(ncol=5, nrow=length(Candidate_k))
-foldN <- sample(x=1:5, size=nrow(train_x), replace=T)
+ErrorMat <- matrix(ncol=10, nrow=length(Candidate_k))
+foldN <- sample(x=1:10, size=nrow(train_x), replace=T)
 CrossTrain_X <- CrossTrain_Y <- CrossTest_X <- CrossTest_Y <- NULL
 
-for(i in 1:5) {
+for(i in 1:10) {
   CrossTrain_X <- train_x[foldN !=i,]
   CrossTest_X <- train_x[foldN ==i,]
   
@@ -185,9 +358,9 @@ for(i in 1:5) {
   CrossTest_Y <- train_y[foldN ==i]
   
   for(j in 1:length(Candidate_k)) {
-    pred <- knn(train=CrossTrain_X, test=CrossTest_X, cl=log(CrossTrain_Y), k=Candidate_k[j])
+    pred <- knn(train=CrossTrain_X, test=CrossTest_X, cl=CrossTrain_Y, k=Candidate_k[j])
     pred <- as.numeric(pred)
-    mse <- mean((log(CrossTest_Y) - pred)^2)
+    mse <- mean((CrossTest_Y - pred)^2)
 
     ErrorMat[j,i] <- mse
   }
@@ -197,79 +370,127 @@ mean_error <- apply(ErrorMat, 1, mean)
 which.min(mean_error)
 ```
 
-  - class library를 이용한 KNN
+  - 위에서 계산한 best K를 이용하여 모델 적합
 
 ```{r KNN_and_accuracy}
-pred_knn <- knn(train=train_x, test=test_x, cl=log(train_y), k=which.min(mean_error))
-pred_knn <- as.numeric(pred_knn2)
-mse<- mean((pred_knn - log(test_y))^2)
+pred_knn <- knn(train=train_x, test=test_x, cl=train_y, k=which.min(mean_error))
+pred_knn <- as.numeric(pred_knn)
 
+mse<- mean((pred_knn - test_y)^2)
 mse
+
+plot(pred_knn ~ test_y)
+abline(a=0, b=1, col="red", lwd=2)
+
+cor(pred_knn, test_y)
 ```
 
+   모델 성능이 좋지 않다. MSE도 크고 예측값과 실제값의 상관관계도 작다. kknn library를 이용하여 새로운 모델을 만들어 본다.
+   
   - kknn library를 이용한 KNN
-
-```{r KNN}
-library(kknn)
-testdat$test_y <- log(testdat$test_y)
-kknn_fit <- kknn(log(train_y)~., train=traindat, test=testdat, distance=2, kernel="gaussian")
-pred_knn2 <- fitted(kknn_fit)
-
-mse2 <- mean((pred_knn2-log(test_y))^2)
-mean((exp(pred_knn2)-test_y)^2)
-
-plot(pred_knn2 ~ log(test_y))
-abline(a=0, b=1, col="red", lwd=2)
-plot(exp(pred_knn2) ~ test_y)
-abline(a=0, b=1, col="red", lwd=2)
-cor(pred_knn2, log(test_y))
-cor(exp(pred_knn2), test_y)
-```
-
- 3) Weighted KNN
- 
-  - LOOCV를 이용해 가장 적합한 k 찾기
-
-```{r LOOCV}
-LOOCV_kknn <- train.kknn(log(train_y)~., traindat, kmax=29, distance=2, kernel="gaussian")
-LOOCV_kknn
-```
-
-    가장 적합한 k 는 29인 것으로 나왔다
-
-```{r weighted_KNN}
-kknn.fit2 <- kknn(log(train_y) ~., train=traindat, test=testdat,
-                  k=29, distance=2, kernel="gaussian")
-kknn.pred2 <- fitted(kknn.fit2)
-plot(kknn.pred2 ~ testdat$test_y)
-abline(a=0, b=1, col="red", lwd=2)
-cor(kknn.pred2, testdat$test_y)
-mean((kknn.pred2 - testdat$test_y)^2)
-mean((exp(kknn.pred2) - test_y)^2)
-```
-
-    Best K인 29를 넣어 fit2를 만든 결과 적합 결과가 전보다 개선되었음을 알 수 있다. 
-  
-  4) Unweighted KNN
   
   - LOOCV를 이용해 가장 적합한 k 찾기
   
 ```{r LOOCV_unweighted}
-LOOCV_kknn2 <- train.kknn(log(train_y)~., traindat, kmax=29, distance=2, kernel="rectangular")
+library(kknn)
+LOOCV_kknn2 <- train.kknn(train_y~., traindat, kmax=29, distance=2, kernel="rectangular")
 LOOCV_kknn2
 ``` 
 
-    가장 적합한 k 는 6인 것으로 나왔다
+   가장 적합한 k 는 23인 것으로 나왔다. 이를 이용하여 모델을 만든다.
     
 ```{r unweighted_knn}
-kknn.fit3 <- kknn(log(train_y)~., train=traindat, test=testdat,
-                  k=16, distance=2, kernel="rectangular")
-kknn.pred3 <- fitted(kknn.fit3)
-plot(kknn.pred3 ~ testdat$test_y)
+kknn_fit3 <- kknn(train_y~., train=traindat, test=testdat,
+                  k=23, distance=2, kernel="rectangular")
+pred_kknn3 <- fitted(kknn_fit3)
+
+mse4 <- mean((pred_kknn3 - testdat$test_y)^2)
+mse4
+
+plot(pred_kknn3 ~ testdat$test_y)
 abline(a=0, b=1, col="red", lwd=2)
-cor(kknn.pred3, testdat$test_y)
-mean((kknn.pred3 - testdat$test_y)^2)
+
+cor(pred_kknn3, testdat$test_y)
 ```
 
-    kernel="rectangular"로 설정하니 "gaussian"일 때보다 결과가 약간 나쁘다.
-  
+ 5) KNN (weighted)
+ 
+```{r weighted_kknn}
+kknn_fit <- kknn(train_y~., train=traindat, test=testdat, distance=2, kernel="gaussian")
+pred_kknn <- fitted(kknn_fit)
+
+mse2 <- mean((pred_kknn - testdat$test_y)^2)
+mse2
+
+plot(pred_kknn ~ testdat$test_y)
+abline(a=0, b=1, col="red", lwd=2)
+
+cor(pred_kknn, testdat$test_y)
+```
+
+ 
+  - LOOCV를 이용해 가장 적합한 k 찾기
+
+```{r LOOCV_weighted}
+LOOCV_kknn <- train.kknn(train_y~., traindat, kmax=29, distance=2, kernel="gaussian")
+LOOCV_kknn
+```
+
+  가장 적합한 k 는 23인 것으로 나왔다. 이를 이용하여 모델을 만든다.
+
+```{r weighted_KNN}
+kknn_fit2 <- kknn(train_y ~., train=traindat, test=testdat,
+                  k=23, distance=2, kernel="gaussian")
+pred_kknn2 <- fitted(kknn_fit2)
+
+mse3 <- mean((pred_kknn2 - testdat$test_y)^2)
+mse3
+
+plot(pred_kknn2 ~ testdat$test_y)
+abline(a=0, b=1, col="red", lwd=2)
+
+cor(pred_kknn2, testdat$test_y)
+```
+ 
+5. 앙상블을 이용한 모델 향상
+
+ 1) Bagging
+ 
+ Bagging을 이용하여 모델을 향상시켰습니다.
+
+```{r bagging}
+library(ipred)
+
+bagging.fit <- ipred::bagging(train_y~., data=traindat, nbagg=1000)
+
+pred.bagging <- predict(bagging.fit, testdat)
+mean((pred.bagging-testdat$test_y)^2)
+plot(pred.bagging~testdat$test_y)
+```
+ 
+ 2) Boosting
+ 
+ Boosting을 이용하여 모델을 향상히켰습니다
+
+```{r boosting}
+library(mboost)
+
+boosting.fit <- glmboost(train_y~., data=traindat)
+
+pred.boosting <- predict(boosting.fit, testdat)
+mean((pred.boosting-testdat$test_y)^2)
+```
+
+ 3) Random Forest
+ 
+ Random Forest를 사용하여 모델을 향상시켰습니다.
+ 
+```{r random_forest}
+library(randomForest)
+
+randomforest.fit <- randomForest(train_y~., data=traindat)
+varImpPlot(randomforest.fit) # Accuracy를 높이는데 중요한 변수와 gini계수를 줄이는데 중요한 변수
+
+pred.randomforest <- predict(randomforest.fit, testdat)
+mean((pred.randomforest-testdat$test_y)^2)
+
