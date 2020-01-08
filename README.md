@@ -5,9 +5,10 @@ Entire Report : https://github.com/GullyMac/seoul_realestate_price/blob/master/r
 
 ---
 
-There are many features that determine price.
+There are many features that determine land price.
 
-The interest in related factors is always hot, since 'home prices' are very sensitive issues in Korean society.
+In particular, since 'home prices' is very sensitive issue in Korean society,
+The interest in features that determine land price is always hot.
 
 For example, recently, Gangseo-gu (in Seoul, South Korea) has been in conflict with parents of students with disabilities, 
 arguing that residents opposing the construction of special schools lower land prices and housing prices.
