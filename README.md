@@ -1,6 +1,6 @@
 # Seoul's (Seoul, South Korea) Land Price Prediction
 
-Entire Report : https://github.com/GullyMac/seoul_realestate_price/blob/master/report.pdf
+Entire Report in Korean : https://github.com/GullyMac/seoul_realestate_price/blob/master/report.pdf
 
 20.01.18 last edit
 
