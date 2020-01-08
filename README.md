@@ -36,6 +36,33 @@ and make a prediction model with small errors.
   서울 열린데이터 광장 - 서울시 개별공시지가 정보 (https://data.seoul.go.kr/openinf/fileview.jsp?infId=OA-1180)
   
   
+#### Explanatory Variable : 법정동별 대형마트, 특수학교, 대형병원, 유흥·단란주점, 숙박업소, 학교 개수
+
+* Source
+
+  서울 열린데이터 광장
+
+    
+---
+
+## 2. Library
+
+#### used library list
+
+* tree : Regression Tree Model
+* rpart : Recursive Partitioning and Regression Trees
+* class : k-Nearest Neighbour Classification, Regression
+* kknn : Weighted k-Nearest Neighbors Classification, Regression
+* ipred : Bagging Classification, Regression
+* mboost : Generalized Linear Model By Likelihood Based Boosting
+* randomForest : Random Forests for Classification and Regression
+  
+---
+
+## 3. EDA
+
+#### Response Variable : 2017년 서울특별시 법정동별 개별공시지가
+
 * Definition
 
   개별공시지가는 표준지공시지가를 이용하여 산정한 개별토지의 단위면적당 가격이다.
@@ -47,13 +74,9 @@ and make a prediction model with small errors.
   
   법정동을 기준으로 한 평균값 사용
   
-  
+
 #### Explanatory Variable : 법정동별 대형마트, 특수학교, 대형병원, 유흥·단란주점, 숙박업소, 학교 개수
 
-* Source
-
-  서울 열린데이터 광장
-  
 * Preprocessing
 
   업체 주소 자료로부터 행정구역 정보(자치구명, 법정동명)를 추출하였다.
@@ -97,18 +120,5 @@ and make a prediction model with small errors.
   숙박업소, 유흥업소, 학교 : 동별 개수가 면적의 영향을 받을 것이므로 개수/면적, 1m^2 -> 1km^2당 개수로 변환
   
   대형마트, 대형병원, 특수학교 : 개수가 적고 좁은 구역에 집중되어 있는 경향이 있으므로 0 또는 1의 바이너리 변수로 변환
-    
----
+ 
 
-## 2. Library
-
-#### used library list
-
-* tree : Regression Tree Model
-* rpart : Recursive Partitioning and Regression Trees
-* class : k-Nearest Neighbour Classification, Regression
-* kknn : Weighted k-Nearest Neighbors Classification, Regression
-* ipred : Bagging Classification, Regression
-* mboost : Generalized Linear Model By Likelihood Based Boosting
-* randomForest : Random Forests for Classification and Regression
-  
