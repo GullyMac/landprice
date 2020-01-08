@@ -94,7 +94,25 @@ and make a prediction model with small errors.
   
   숙박업소, 유흥업소, 학교의 경우 동별 개수 데이터가 동별 면적의 영향을 받을 것이므로 해당 법정동의 면적으로 나누어 1km^2당 개수로 변환하였다.
   
-  1m^2당 개수이므로 10^6을 곱하여 1km^2당 개수로 변환
-  
   대형마트, 대형병원, 특수학교의 경우 기본적으로 전체 업체 수가 적고 좁은 구역에 집중되어 있는 경향이 있으므로 0 또는 1의 바이너리 변수로 변환하였다.
+    
+---
+
+## 2. Library
+
+#### used library list
+
+tree : Regression Tree Model
+
+rpart : Recursive Partitioning and Regression Trees
+
+class : k-Nearest Neighbour Classification, Regression
+
+kknn : Weighted k-Nearest Neighbors Classification, Regression
+
+ipred : Bagging Classification, Regression
+
+mboost : Generalized Linear Model By Likelihood Based Boosting
+
+randomForest : Random Forests for Classification and Regression
   
