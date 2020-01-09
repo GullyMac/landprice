@@ -47,7 +47,19 @@ and make a prediction model with small errors.
 
 ## 2. Library
 
-#### used library list
+#### Visualization
+
+* RColorBrewer : Coloring
+* maptools : Geographic Data Manipulatiion
+* foreign : Reading Data Written with Other Languages
+* ggplot2 : Visualization
+* dplyr : Data Manipulation
+* gdata : Data Manipulation
+* gridExtra : Drawing Grid Graphics
+* readr : Reading Data
+* readAny : Reading Dadta
+
+#### Modeling
 
 * tree : Regression Tree Model
 * rpart : Recursive Partitioning and Regression Trees
