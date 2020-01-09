@@ -47,17 +47,20 @@ and make a prediction model with small errors.
 
 ## 2. Library
 
+#### Data Handling
+
+* readr : Reading Data
+* readAny : Reading Data
+* dplyr : Data Manipulation
+* gdata : Data Manipulation
+* foreign : Reading Data Written with Other Languages
+
 #### Visualization
 
 * RColorBrewer : Coloring
 * maptools : Geographic Data Manipulatiion
-* foreign : Reading Data Written with Other Languages
 * ggplot2 : Visualization
-* dplyr : Data Manipulation
-* gdata : Data Manipulation
 * gridExtra : Drawing Grid Graphics
-* readr : Reading Data
-* readAny : Reading Dadta
 
 #### Modeling
 
